@@ -1,0 +1,15 @@
+plugins {
+    id 'java-library'
+}
+
+repositories {
+    jcenter()
+    mavenCentral()
+}
+
+dependencies {
+    compile 'com.google.guava:guava:27.0.1-jre' // Guava is lit AF
+    compile 'redis.clients:jedis:3.0.1' // For Redis Cache
+    compile 'com.rabbitmq:amqp-client:5.6.0' // AMQP Client
+    compile 'com.fasterxml.jackson.core:jackson-core:2.9.8' // JSON Parser
+}
