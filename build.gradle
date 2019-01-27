@@ -2,14 +2,24 @@ plugins {
     id 'java-library'
 }
 
+// Add the examples source set to sourceSets
+sourceSets {
+    examples {
+        compileClasspath += main.output
+        runtimeClasspath += main.output
+    }
+}
+
 repositories {
     jcenter()
     mavenCentral()
 }
 
 dependencies {
-    compile 'com.google.guava:guava:27.0.1-jre' // Guava is lit AF
-    compile 'redis.clients:jedis:3.0.1' // For Redis Cache
-    compile 'com.rabbitmq:amqp-client:5.6.0' // AMQP Client
-    compile 'com.fasterxml.jackson.core:jackson-core:2.9.8' // JSON Parser
+    api 'org.slf4j:slf4j-api:1.7.25' // Logging
+    implementation 'com.google.guava:guava:27.0.1-jre' // Guava provides many utilities that might be used in the future.
+                                                       // Might be removed if not used later on
+    implementation 'redis.clients:jedis:3.0.1' // For Redis Cache
+    implementation 'com.rabbitmq:amqp-client:5.6.0' // AMQP Client
+    implementation 'com.fasterxml.jackson.core:jackson-core:2.9.8' // JSON Parser
 }

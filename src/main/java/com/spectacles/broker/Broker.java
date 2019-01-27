@@ -1,12 +1,33 @@
 package com.spectacles.broker;
 
+import java.io.Closeable;
+import java.util.List;
 import java.util.concurrent.Future;
 
 /**
  * The Basic Broker Interface
  * The broker is used to communicate between the nodes
  */
-public interface Broker {
+public interface Broker extends Closeable {
+
+    /**
+     * Add event listeners
+     * @param eventListeners the event listeners to add
+     */
+    void addListeners(EventListener... eventListeners);
+
+    /**
+     * Remove event listeners
+     * @param eventListeners the event listeners to remove
+     */
+    void removeListeners(EventListener... eventListeners);
+
+    /**
+     * Get event listeners
+     * @return the event listeners
+     */
+    List<EventListener> getListeners();
+
     /**
      * Publishes a message of an event asynchronously
      * @param event The event name

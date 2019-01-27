@@ -1,23 +1,39 @@
 package com.spectacles.broker.impl;
 
-import com.rabbitmq.client.AMQP;
-import com.rabbitmq.client.Channel;
-import com.rabbitmq.client.Connection;
-import com.rabbitmq.client.ConnectionFactory;
+import com.rabbitmq.client.*;
 import com.spectacles.broker.Broker;
+import com.spectacles.broker.EventListener;
+import org.apache.commons.pool2.ObjectPool;
+import org.apache.commons.pool2.impl.GenericObjectPool;
 
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
-import java.util.HashMap;
+import java.util.*;
 import java.util.concurrent.*;
+import java.util.stream.Collectors;
 
 /**
  * An implementation of the broker using RabbitMQ (AMQP)
  */
 public class AmqpBroker implements Broker {
+
+    /**
+     * The event listeners
+     */
+    private final LinkedList<EventListener> listeners = new LinkedList<>();
+
+    /**
+     * The consumerTags of events
+     */
+    private final HashMap<String, String> consumerTags = new HashMap<>();
+
+    /**
+     * Consumer tag to channel map
+     */
+    private final HashMap<String, Channel> consumerChannels = new HashMap<>();
 
     /**
      * The thread pool to use for Async operations
@@ -59,12 +75,16 @@ public class AmqpBroker implements Broker {
     }
 
     /**
-     * The AMQP channel this broker is connected to
+     * The channel pool
+     * There should be a channel for every thread to ensure thread safety
      */
-    private Channel channel;
+    private ThreadLocal<Channel> channelPool = new ThreadLocal<>();
 
-    public Channel getChannel() {
-        return channel;
+    private Channel getSetChannel() throws IOException {
+        if (channelPool.get() == null) {
+            channelPool.set(connection.createChannel());
+        }
+        return channelPool.get();
     }
 
     public AmqpBroker(final String group, final String subgroup, final ExecutorService pool) {
@@ -83,8 +103,9 @@ public class AmqpBroker implements Broker {
         pool.submit(() -> {
             try {
                 connection = factory.newConnection();
-                channel = connection.createChannel();
-                channel.exchangeDeclare(group, "direct", true, false, new HashMap<>());
+                Channel channel = connection.createChannel();
+                channelPool.set(channel);
+                channel.exchangeDeclare(group, "direct", false, false, new HashMap<>());
                 f.complete(null);
             } catch (Exception e) {
                 f.completeExceptionally(e);
@@ -149,11 +170,26 @@ public class AmqpBroker implements Broker {
     }
 
     @Override
+    public void addListeners(EventListener... eventListeners) {
+        listeners.addAll(Arrays.asList(eventListeners));
+    }
+
+    @Override
+    public void removeListeners(EventListener... eventListeners) {
+        listeners.removeAll(Arrays.asList(eventListeners));
+    }
+
+    @Override
+    public List<EventListener> getListeners() {
+        return listeners;
+    }
+
+    @Override
     public Future<Void> publish(String event, byte[] data) {
         CompletableFuture<Void> f = new CompletableFuture<>();
         pool.submit(()->{
             try {
-                channel.basicPublish(group, event, new AMQP.BasicProperties(), data);
+                getSetChannel().basicPublish(group, event, new AMQP.BasicProperties(), data);
                 f.complete(null);
             } catch (Exception e) {
                 f.completeExceptionally(e);
@@ -164,26 +200,67 @@ public class AmqpBroker implements Broker {
 
     @Override
     public Future<Void> subscribe(String... events) {
-        CompletableFuture<Void> f = new CompletableFuture<>();
-        pool.submit(()->{
-            for (String event : events) {
-                try {
-                    String qname = String.format("%s%s%s", group, subgroup, event);
-                    channel.queueDeclare(qname, true, false, false, new HashMap<>());
-                    channel.queueBind(qname, group, event);
-                    // WIP Need to add event listeners
-                } catch (IOException e) {
-                    f.completeExceptionally(e);
-                    break;
-                }
-
-            }
-        });
-        return f;
+       return CompletableFuture.allOf((CompletableFuture[]) Arrays
+               .stream(events)
+               .map((event) -> {
+                   CompletableFuture<Void> future = new CompletableFuture<>();
+                   pool.submit(() -> {
+                       try {
+                           String qname = String.format("%s%s%s", group, subgroup, event);
+                           Channel channel = getSetChannel();
+                           channel.queueDeclare(qname, false, false, false, new HashMap<>());
+                           channel.queueBind(qname, group, event);
+                           String consumer = channel.basicConsume(qname, false, new DefaultConsumer(channel) {
+                               @Override
+                               public void handleDelivery(String consumerTag, Envelope envelope, AMQP.BasicProperties properties, byte[] body) throws IOException {
+                                   for (EventListener listener : listeners) {
+                                       listener.onEvent(new AmqpReceivedEvent(event, body));
+                                   }
+                                   channel.basicAck(envelope.getDeliveryTag(), false);
+                               }
+                           });
+                           consumerTags.put(event, consumer);
+                           consumerChannels.put(consumer, channel);
+                           future.complete(null);
+                       } catch (IOException e) {
+                           future.completeExceptionally(e);
+                       }
+                   });
+                   return future;
+               }).toArray()
+       );
     }
 
     @Override
     public Future<Void> unsubscribe(String... events) {
-        return null;
+        return CompletableFuture.allOf((CompletableFuture[]) Arrays
+                .stream(events)
+                .map((event)-> {
+                    CompletableFuture<Void> f = new CompletableFuture<>();
+                    pool.submit(()->{
+                        try {
+                            if (consumerTags.containsKey(event)) {
+                                String consumer = consumerTags.get(event);
+                                Channel channel = consumerChannels.get(consumer);
+                                channel.basicCancel(consumerTags.get(event));
+                                consumerChannels.remove(consumerTags.get(event));
+                                f.complete(null);
+                            } else {
+                                f.completeExceptionally(new UnsupportedOperationException("This event hasn't been subscribed to!"));
+                            }
+                        } catch (IOException e) {
+                            f.completeExceptionally(e);
+                        }
+                    });
+                    return f;
+                })
+                .toArray());
+    }
+
+    @Override
+    public void close() throws IOException {
+        if (connection != null) {
+            connection.close();
+        }
     }
 }
