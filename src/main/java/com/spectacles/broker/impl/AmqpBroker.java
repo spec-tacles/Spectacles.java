@@ -125,7 +125,7 @@ public class AmqpBroker implements Broker {
         return connect(factory);
     }
 
-                                /**
+    /**
      * Connects to the RabbitMQ instance
      * @param host the uri of the server
      * @return A future
