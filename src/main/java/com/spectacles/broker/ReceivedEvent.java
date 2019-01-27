@@ -1,7 +1,5 @@
 package com.spectacles.broker;
 
-import com.rabbitmq.client.BasicProperties;
-
 /**
  * The event invoked from receiving a message
  */

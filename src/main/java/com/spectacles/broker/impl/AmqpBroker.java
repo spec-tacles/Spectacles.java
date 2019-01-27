@@ -3,8 +3,6 @@ package com.spectacles.broker.impl;
 import com.rabbitmq.client.*;
 import com.spectacles.broker.Broker;
 import com.spectacles.broker.EventListener;
-import org.apache.commons.pool2.ObjectPool;
-import org.apache.commons.pool2.impl.GenericObjectPool;
 
 import java.io.IOException;
 import java.net.URI;
@@ -13,7 +11,6 @@ import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
 import java.util.*;
 import java.util.concurrent.*;
-import java.util.stream.Collectors;
 
 /**
  * An implementation of the broker using RabbitMQ (AMQP)
@@ -118,9 +115,9 @@ public class AmqpBroker implements Broker {
      * Connect with a connection uri
      * @param uri the connection uri
      * @return A future
-     * @throws URISyntaxException
-     * @throws NoSuchAlgorithmException
-     * @throws KeyManagementException
+     * @throws URISyntaxException being thrown from {@link ConnectionFactory#setUri(URI)}
+     * @throws NoSuchAlgorithmException being thrown from {@link ConnectionFactory#setUri(URI)}
+     * @throws KeyManagementException being thrown from {@link ConnectionFactory#setUri(URI)}
      */
     public Future<Void> connect(final URI uri) throws URISyntaxException, NoSuchAlgorithmException, KeyManagementException {
         ConnectionFactory factory = new ConnectionFactory();
