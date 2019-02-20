@@ -1,3 +1,6 @@
 .idea/
 .gradle/
 out/
+
+# For testing purposes
+src/main/java/com/spectacles/test/

@@ -22,16 +22,19 @@ public class AmqpBrokerBuilder {
         return pool;
     }
 
-    public void setGroup(String group) {
+    public AmqpBrokerBuilder setGroup(String group) {
         this.group = group;
+        return this;
     }
 
-    public void setSubgroup(String subgroup) {
+    public AmqpBrokerBuilder setSubgroup(String subgroup) {
         this.subgroup = subgroup;
+        return this;
     }
 
-    public void setPool(ExecutorService pool) {
+    public AmqpBrokerBuilder setPool(ExecutorService pool) {
         this.pool = pool;
+        return this;
     }
 
     public AmqpBroker build() {

@@ -1,13 +1,13 @@
-package com.spectacles.broker.impl;
+package com.spectacles.broker;
 
-import com.spectacles.broker.ReceivedEvent;
+import com.spectacles.entities.ReceivedEvent;
 
 import java.nio.charset.StandardCharsets;
 
-public class AmqpReceivedEvent implements ReceivedEvent {
+public class BrokerReceivedEvent implements ReceivedEvent {
 
-    String event;
-    String data;
+    private String event;
+    private String data;
 
     @Override
     public String getEvent() {
@@ -19,7 +19,7 @@ public class AmqpReceivedEvent implements ReceivedEvent {
         return data;
     }
 
-    public AmqpReceivedEvent(String event, byte[] data) {
+    public BrokerReceivedEvent(String event, byte[] data) {
         this.event = event;
         this.data = new String(data, StandardCharsets.UTF_8);
     }

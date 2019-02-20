@@ -1,8 +1,10 @@
 package com.spectacles.broker.impl;
 
 import com.rabbitmq.client.*;
+import com.spectacles.broker.BrokerEventListener;
+import com.spectacles.broker.BrokerReceivedEvent;
 import com.spectacles.broker.Broker;
-import com.spectacles.broker.EventListener;
+import com.spectacles.entities.EventListener;
 
 import java.io.IOException;
 import java.net.URI;
@@ -20,7 +22,7 @@ public class AmqpBroker implements Broker {
     /**
      * The event listeners
      */
-    private final LinkedList<EventListener> listeners = new LinkedList<>();
+    private final LinkedList<BrokerEventListener> listeners = new LinkedList<>();
 
     /**
      * The consumerTags of events
@@ -78,8 +80,14 @@ public class AmqpBroker implements Broker {
     private ThreadLocal<Channel> channelPool = new ThreadLocal<>();
 
     private Channel getSetChannel() throws IOException {
+        if (connection == null) {
+            throw new IllegalArgumentException("There is no ongoing connection! Are you sure you called connect()?");
+        }
+
         if (channelPool.get() == null) {
-            channelPool.set(connection.createChannel());
+            Channel channel = connection.createChannel();
+            channelPool.set(channel);
+            channel.exchangeDeclare(group, "direct", false, false, new HashMap<>());
         }
         return channelPool.get();
     }
@@ -100,9 +108,6 @@ public class AmqpBroker implements Broker {
         pool.submit(() -> {
             try {
                 connection = factory.newConnection();
-                Channel channel = connection.createChannel();
-                channelPool.set(channel);
-                channel.exchangeDeclare(group, "direct", false, false, new HashMap<>());
                 f.complete(null);
             } catch (Exception e) {
                 f.completeExceptionally(e);
@@ -167,17 +172,17 @@ public class AmqpBroker implements Broker {
     }
 
     @Override
-    public void addListeners(EventListener... eventListeners) {
+    public void addListeners(BrokerEventListener... eventListeners) {
         listeners.addAll(Arrays.asList(eventListeners));
     }
 
     @Override
-    public void removeListeners(EventListener... eventListeners) {
+    public void removeListeners(BrokerEventListener... eventListeners) {
         listeners.removeAll(Arrays.asList(eventListeners));
     }
 
     @Override
-    public List<EventListener> getListeners() {
+    public List<BrokerEventListener> getListeners() {
         return listeners;
     }
 
@@ -210,8 +215,8 @@ public class AmqpBroker implements Broker {
                            String consumer = channel.basicConsume(qname, false, new DefaultConsumer(channel) {
                                @Override
                                public void handleDelivery(String consumerTag, Envelope envelope, AMQP.BasicProperties properties, byte[] body) throws IOException {
-                                   for (EventListener listener : listeners) {
-                                       listener.onEvent(new AmqpReceivedEvent(event, body));
+                                   for (BrokerEventListener listener : listeners) {
+                                       listener.onEvent(new BrokerReceivedEvent(event, body));
                                    }
                                    channel.basicAck(envelope.getDeliveryTag(), false);
                                }

@@ -1,4 +1,4 @@
-package com.spectacles.broker;
+package com.spectacles.entities;
 
 /**
  * The event invoked from receiving a message
