@@ -1,8 +1,8 @@
 package com.spectacles.gateway;
 
-import com.spectacles.entities.EventListener;
+import com.spectacles.entities.event.EventListener;
 
-public interface ShardEventListener extends EventListener<ShardReceivedEvent> {
+public interface ShardEventListener extends EventListener<ShardEvent> {
 
-    void onEvent(ShardReceivedEvent event);
+    void onEvent(ShardEvent event);
 }

@@ -2,9 +2,8 @@ package com.spectacles.broker.impl;
 
 import com.rabbitmq.client.*;
 import com.spectacles.broker.BrokerEventListener;
-import com.spectacles.broker.BrokerReceivedEvent;
+import com.spectacles.broker.BrokerEvent;
 import com.spectacles.broker.Broker;
-import com.spectacles.entities.EventListener;
 
 import java.io.IOException;
 import java.net.URI;
@@ -216,7 +215,7 @@ public class AmqpBroker implements Broker {
                                @Override
                                public void handleDelivery(String consumerTag, Envelope envelope, AMQP.BasicProperties properties, byte[] body) throws IOException {
                                    for (BrokerEventListener listener : listeners) {
-                                       listener.onEvent(new BrokerReceivedEvent(event, body));
+                                       listener.onEvent(new BrokerEvent(event, body));
                                    }
                                    channel.basicAck(envelope.getDeliveryTag(), false);
                                }

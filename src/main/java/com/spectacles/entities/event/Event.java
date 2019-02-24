@@ -1,9 +1,9 @@
-package com.spectacles.entities;
+package com.spectacles.entities.event;
 
 /**
  * The event invoked from receiving a message
  */
-public interface ReceivedEvent {
+public interface Event {
     /**
      * The event name
      * @return event name

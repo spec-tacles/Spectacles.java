@@ -10,6 +10,18 @@ import java.util.concurrent.Future;
 public interface Shard extends Closeable {
 
     /**
+     * Shards don't have to be in a cluster, they can be constructed on their own
+     * @return Whether or not this shard is in a cluster
+     */
+    boolean inCluster();
+
+    /**
+     * Gets the shard id
+     * @return the shard id
+     */
+    int getId();
+
+    /**
      * Connects the shard to the Discord Gateway
      */
     Future<Void> connect();

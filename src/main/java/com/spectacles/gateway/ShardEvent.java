@@ -1,11 +1,11 @@
 package com.spectacles.gateway;
 
-import com.spectacles.entities.ReceivedEvent;
+import com.spectacles.entities.event.Event;
 
 /**
  * The events received by the shard
  */
-public class ShardReceivedEvent implements ReceivedEvent {
+public class ShardEvent implements Event {
 
     /**
      * The shard's id
@@ -21,7 +21,6 @@ public class ShardReceivedEvent implements ReceivedEvent {
      * The data
      */
     private String data;
-
 
 
     @Override

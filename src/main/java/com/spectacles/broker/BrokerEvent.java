@@ -1,10 +1,10 @@
 package com.spectacles.broker;
 
-import com.spectacles.entities.ReceivedEvent;
+import com.spectacles.entities.event.Event;
 
 import java.nio.charset.StandardCharsets;
 
-public class BrokerReceivedEvent implements ReceivedEvent {
+public class BrokerEvent implements Event {
 
     private String event;
     private String data;
@@ -19,7 +19,7 @@ public class BrokerReceivedEvent implements ReceivedEvent {
         return data;
     }
 
-    public BrokerReceivedEvent(String event, byte[] data) {
+    public BrokerEvent(String event, byte[] data) {
         this.event = event;
         this.data = new String(data, StandardCharsets.UTF_8);
     }

@@ -1,9 +1,9 @@
-package com.spectacles.entities;
+package com.spectacles.entities.event;
 
 /**
  * A basic listener for events
  */
-public interface EventListener<T extends ReceivedEvent> {
+public interface EventListener<T extends Event> {
     /**
      * A function to execute on event invoked
      * @param event the event invoked

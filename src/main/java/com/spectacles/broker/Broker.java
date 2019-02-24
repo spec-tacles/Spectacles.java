@@ -1,8 +1,5 @@
 package com.spectacles.broker;
 
-import com.spectacles.entities.EventListener;
-import com.spectacles.entities.ReceivedEvent;
-
 import java.io.Closeable;
 import java.util.List;
 import java.util.concurrent.Future;
