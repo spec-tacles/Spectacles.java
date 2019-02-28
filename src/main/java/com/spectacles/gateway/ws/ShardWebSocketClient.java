@@ -2,6 +2,7 @@ package com.spectacles.gateway.ws;
 
 import com.spectacles.gateway.Shard;
 import com.spectacles.gateway.ws.events.ShardWebSocketCloseEvent;
+import com.spectacles.gateway.ws.events.ShardWebSocketOpenEvent;
 import org.java_websocket.client.WebSocketClient;
 import org.java_websocket.handshake.ServerHandshake;
 import org.slf4j.Logger;
@@ -14,10 +15,19 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * The WebSocket client that manages the shard's connection
+ */
 public class ShardWebSocketClient extends WebSocketClient {
 
+    /**
+     * The logger
+     */
     private Logger log = LoggerFactory.getLogger(getClass());
 
+    /**
+     * The shard associated with this client
+     */
     private Shard shard;
 
     /**
@@ -72,6 +82,12 @@ public class ShardWebSocketClient extends WebSocketClient {
         }
     }
 
+    /**
+     * Adds shard id to the message logged
+     *
+     * @param message the message to log
+     * @return the message with the shard id prepended
+     */
     private String logFormat(String message) {
         return String.format("[Shard %d] %s", shard.getId(), message);
     }
@@ -79,7 +95,7 @@ public class ShardWebSocketClient extends WebSocketClient {
     @Override
     public void onOpen(ServerHandshake handshakedata) {
         log.debug(logFormat("Connected to WebSocket"));
-
+        onEvent(new ShardWebSocketOpenEvent(handshakedata, this));
     }
 
     @Override

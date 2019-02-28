@@ -24,17 +24,19 @@ public interface Shard extends Closeable {
     /**
      * Connects the shard to the Discord Gateway
      */
-    Future<Void> connect();
+    Future<?> connect();
 
     /**
      * Disconnects the shard from the Discord Gateway
+     * @param closeCode the close code to send
+     * @param reason the reason of closing
      */
-    Future<Void> disconnect();
+    Future<?> disconnect(int closeCode, String reason);
 
     /**
      * Sends a message to the Discord Gateway
      */
-    Future<Void> send();
+    Future<?> send();
 
     /**
      * Add event listeners
