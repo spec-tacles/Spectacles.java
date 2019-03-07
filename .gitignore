@@ -2,5 +2,7 @@
 .gradle/
 out/
 
+*.iml
+
 # For testing purposes
 src/main/java/com/spectacles/test/
