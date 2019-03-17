@@ -14,5 +14,5 @@ public interface Event {
      * The data UTF-8 encoded
      * @return data
      */
-    String getData();
+    Object getData();
 }

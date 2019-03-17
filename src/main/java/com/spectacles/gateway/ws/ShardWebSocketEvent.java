@@ -11,9 +11,9 @@ public abstract class ShardWebSocketEvent implements Event {
 
     private String event;
 
-    private String data;
+    private Object data;
 
-    public ShardWebSocketEvent(String event, String data, ShardWebSocketClient webSocketClient) {
+    public ShardWebSocketEvent(String event, Object data, ShardWebSocketClient webSocketClient) {
         this.event = event;
         this.data = data;
         this.webSocketClient = webSocketClient;
@@ -25,11 +25,11 @@ public abstract class ShardWebSocketEvent implements Event {
 
     @Override
     public String getEvent() {
-        return "ws";
+        return event;
     }
 
     @Override
-    public String getData() {
-        return null;
+    public Object getData() {
+        return data;
     }
 }
