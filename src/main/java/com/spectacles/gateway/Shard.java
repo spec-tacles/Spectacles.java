@@ -1,8 +1,8 @@
 package com.spectacles.gateway;
 
+import com.google.common.util.concurrent.ListenableFuture;
+
 import java.io.Closeable;
-import java.util.List;
-import java.util.concurrent.Future;
 
 /**
  * The Interface of the Shard
@@ -22,38 +22,39 @@ public interface Shard extends Closeable {
     int getId();
 
     /**
+     * Gets the bot's token
+     *
+     * @return the token
+     */
+    String getToken();
+
+    /**
      * Connects the shard to the Discord Gateway
      */
-    Future<?> connect();
+    ListenableFuture<?> connectAsync();
 
     /**
      * Disconnects the shard from the Discord Gateway
      * @param closeCode the close code to send
      * @param reason the reason of closing
      */
-    Future<?> disconnect(int closeCode, String reason);
+    ListenableFuture<?> disconnectAsync(int closeCode, String reason);
 
     /**
      * Sends a message to the Discord Gateway
      */
-    Future<?> send();
+    ListenableFuture<?> sendAsync();
 
     /**
      * Add event listeners
-     * @param eventListeners the event listeners to add
+     * @param listener the event listeners to add
      */
-    void addListeners(ShardEventListener... eventListeners);
+    void addListener(Object listener);
 
     /**
      * Remove event listeners
-     * @param eventListeners the event listeners to remove
+     * @param listener the event listeners to remove
      */
-    void removeListeners(ShardEventListener... eventListeners);
-
-    /**
-     * Get event listeners
-     * @return the event listeners
-     */
-    List<ShardEventListener> getListeners();
+    void removeListener(Object listener);
 
 }

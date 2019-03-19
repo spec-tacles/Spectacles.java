@@ -1,6 +1,6 @@
 package com.spectacles.gateway.ws;
 
-import com.google.common.util.concurrent.RateLimiter;
+import com.google.common.eventbus.EventBus;
 import com.spectacles.gateway.Shard;
 import com.spectacles.gateway.ws.events.ShardWebSocketBinaryEvent;
 import com.spectacles.gateway.ws.events.ShardWebSocketCloseEvent;
@@ -13,9 +13,6 @@ import org.slf4j.LoggerFactory;
 
 import java.net.URI;
 import java.nio.ByteBuffer;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
 import java.util.Map;
 
 /**
@@ -33,12 +30,11 @@ public class ShardWebSocketClient extends WebSocketClient {
      */
     private Shard shard;
 
-    private RateLimiter rateLimiter = new SmoothRateLImite
-
     /**
-     * The listener list
+     * The listener bus
      */
-    private List<ShardWebSocketEventListener> listeners = new ArrayList<>();
+    @SuppressWarnings("While it is considered beta, it's because it might change in the future.")
+    private final EventBus eventBus;
 
     /**
      * Build the websocket using only host
@@ -48,6 +44,7 @@ public class ShardWebSocketClient extends WebSocketClient {
     public ShardWebSocketClient(URI serverUri, Shard shard) {
         super(serverUri);
         this.shard = shard;
+        eventBus = new EventBus();
     }
 
     /**
@@ -59,22 +56,23 @@ public class ShardWebSocketClient extends WebSocketClient {
     public ShardWebSocketClient(URI serverUri, Map<String, String> httpHeaders, Shard shard) {
         super(serverUri, httpHeaders);
         this.shard = shard;
+        eventBus = new EventBus();
     }
 
     /**
-     * Add listeners to the listener list
-     * @param listeners the listeners to add
+     * Add a listener to the listener list
+     * @param listener the listener to add
      */
-    public void addListeners(ShardWebSocketEventListener... listeners) {
-        this.listeners.addAll(Arrays.asList(listeners));
+    public void addListener(Object listener) {
+        this.eventBus.register(listener);
     }
 
     /**
-     * Remove listeners from the listener list
-     * @param listeners the listeners to remove
+     * Remove a listener from the listener list
+     * @param listener the listener to remove
      */
-    public void removeListeners(ShardWebSocketEventListener... listeners) {
-        this.listeners.removeAll(Arrays.asList(listeners));
+    public void removeListener(Object listener) {
+        this.eventBus.unregister(listener);
     }
 
     /**
@@ -82,9 +80,7 @@ public class ShardWebSocketClient extends WebSocketClient {
      * @param event the event called
      */
     private void onEvent(ShardWebSocketEvent event) {
-        for (ShardWebSocketEventListener listener : listeners) {
-            listener.onEvent(event);
-        }
+        eventBus.post(event);
     }
 
     /**
@@ -104,7 +100,6 @@ public class ShardWebSocketClient extends WebSocketClient {
 
     @Override
     public void onMessage(String message) {
-        log.debug(logFormat("Received a message: " + message));
         onEvent(new ShardWebSocketMessageEvent(message, this));
     }
 
@@ -120,7 +115,7 @@ public class ShardWebSocketClient extends WebSocketClient {
 
     @Override
     public void onError(Exception ex) {
-        log.warn(logFormat("While connecting to the WebSocket the client has encountered an exception"), ex.getCause());
+        log.warn(logFormat("While connecting to the WebSocket the client has encountered an exception:\n" + ex.getMessage()));
 
     }
 }

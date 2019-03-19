@@ -1,17 +1,21 @@
 package com.spectacles.broker.impl;
 
+import com.google.common.eventbus.EventBus;
 import com.rabbitmq.client.*;
-import com.spectacles.broker.BrokerEventListener;
-import com.spectacles.broker.BrokerEvent;
 import com.spectacles.broker.Broker;
+import com.spectacles.broker.BrokerEvent;
 
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
-import java.util.*;
-import java.util.concurrent.*;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.Future;
 
 /**
  * An implementation of the broker using RabbitMQ (AMQP)
@@ -21,7 +25,8 @@ public class AmqpBroker implements Broker {
     /**
      * The event listeners
      */
-    private final LinkedList<BrokerEventListener> listeners = new LinkedList<>();
+    @SuppressWarnings("")
+    private final EventBus eventBus = new EventBus();
 
     /**
      * The consumerTags of events
@@ -170,19 +175,15 @@ public class AmqpBroker implements Broker {
         return connect(factory);
     }
 
+
     @Override
-    public void addListeners(BrokerEventListener... eventListeners) {
-        listeners.addAll(Arrays.asList(eventListeners));
+    public void addListener(Object eventListener) {
+        eventBus.register(eventListener);
     }
 
     @Override
-    public void removeListeners(BrokerEventListener... eventListeners) {
-        listeners.removeAll(Arrays.asList(eventListeners));
-    }
-
-    @Override
-    public List<BrokerEventListener> getListeners() {
-        return listeners;
+    public void removeListener(Object eventListener) {
+        eventBus.unregister(eventListener);
     }
 
     @Override
@@ -214,9 +215,8 @@ public class AmqpBroker implements Broker {
                            String consumer = channel.basicConsume(qname, false, new DefaultConsumer(channel) {
                                @Override
                                public void handleDelivery(String consumerTag, Envelope envelope, AMQP.BasicProperties properties, byte[] body) throws IOException {
-                                   for (BrokerEventListener listener : listeners) {
-                                       listener.onEvent(new BrokerEvent(event, body));
-                                   }
+                                   eventBus.post(new BrokerEvent(event, body));
+
                                    channel.basicAck(envelope.getDeliveryTag(), false);
                                }
                            });

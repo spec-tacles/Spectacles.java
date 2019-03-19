@@ -1,7 +1,6 @@
 package com.spectacles.broker;
 
 import java.io.Closeable;
-import java.util.List;
 import java.util.concurrent.Future;
 
 /**
@@ -12,21 +11,15 @@ public interface Broker extends Closeable {
 
     /**
      * Add event listeners
-     * @param eventListeners the event listeners to add
+     * @param eventListener the event listeners to add
      */
-    void addListeners(BrokerEventListener... eventListeners);
+    void addListener(Object eventListener);
 
     /**
      * Remove event listeners
-     * @param eventListeners the event listeners to remove
+     * @param eventListener the event listeners to remove
      */
-    void removeListeners(BrokerEventListener... eventListeners);
-
-    /**
-     * Get event listeners
-     * @return the event listeners
-     */
-    List<BrokerEventListener> getListeners();
+    void removeListener(Object eventListener);
 
     /**
      * Publishes a message of an event asynchronously

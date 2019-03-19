@@ -17,10 +17,17 @@ repositories {
 
 dependencies {
     api 'org.slf4j:slf4j-api:1.7.25' // Logging
+    implementation group: 'org.slf4j', name: 'slf4j-simple', version: '1.7.26'
     implementation 'com.google.guava:guava:27.1-jre' // Guava provides many utilities that might be used in the future.
                                                        // Might be removed if not used later on
     implementation 'redis.clients:jedis:3.0.1' // For Redis Cache
+    
     implementation 'com.rabbitmq:amqp-client:5.6.0' // AMQP Client
+    
     implementation 'org.java-websocket:Java-WebSocket:1.4.0'
+    
+    implementation "com.squareup.okhttp3:okhttp:3.14.0"
+    
     implementation 'com.fasterxml.jackson.core:jackson-core:2.9.8' // JSON Parser
+    implementation 'com.fasterxml.jackson.core:jackson-databind:2.9.8' // JSON Parser
 }

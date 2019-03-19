@@ -1,18 +1,25 @@
 package com.spectacles.gateway.impl;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.eventbus.EventBus;
+import com.google.common.eventbus.Subscribe;
+import com.google.common.util.concurrent.Futures;
+import com.google.common.util.concurrent.ListenableFuture;
+import com.google.common.util.concurrent.ListeningExecutorService;
+import com.google.common.util.concurrent.MoreExecutors;
+import com.spectacles.entities.gateway.GatewayBot;
 import com.spectacles.gateway.Cluster;
 import com.spectacles.gateway.Shard;
-import com.spectacles.gateway.ShardEventListener;
 import com.spectacles.gateway.ws.ShardWebSocketClient;
+import com.spectacles.gateway.ws.events.ShardWebSocketMessageEvent;
+import okhttp3.OkHttpClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.net.URI;
-import java.util.List;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.ForkJoinPool;
-import java.util.concurrent.Future;
 
 public class ShardImpl implements Shard {
 
@@ -27,9 +34,19 @@ public class ShardImpl implements Shard {
     private int id;
 
     /**
+     * The http client for the shard
+     */
+    private OkHttpClient client = new OkHttpClient();
+
+    /**
      * The cluster this shard is in
      */
     private Cluster cluster = null;
+
+    /**
+     * The cached gateway (if exists)
+     */
+    private GatewayBot gateway;
 
     /**
      * The Discord token of the bot account
@@ -42,14 +59,20 @@ public class ShardImpl implements Shard {
     private int shardCount;
 
     /**
-     * The WebSocket client
+     * Event bus to handle events
      */
-    private ShardWebSocketClient wsclient = new ShardWebSocketClient(URI.create("wss://gateway.discord.gg/?v=6&encoding=json"), this);
+    @SuppressWarnings("")
+    private EventBus eventBus = new EventBus();
 
     /**
-     * The pool for the async operations
+     * The WebSocket client
      */
-    private ExecutorService pool;
+    private ShardWebSocketClient wsclient = null;
+
+    /**
+     * The pool for the async operations, it is listening and can be added callbacks to while still being totally safe
+     */
+    private ListeningExecutorService pool;
 
     /**
      * The constructor is given a cluster object (of the cluster that manages it probably) and the shard id
@@ -61,7 +84,7 @@ public class ShardImpl implements Shard {
         this.id = id;
         this.token = cluster.getToken();
         this.shardCount = cluster.getShardCount();
-        this.pool = ForkJoinPool.commonPool();
+        this.pool = MoreExecutors.newDirectExecutorService();
     }
 
     /**
@@ -71,7 +94,7 @@ public class ShardImpl implements Shard {
      * @param id      the shard id
      * @param service the thread pool to use for async operations
      */
-    public ShardImpl(Cluster cluster, int id, ExecutorService service) {
+    public ShardImpl(Cluster cluster, int id, ListeningExecutorService service) {
         this.cluster = cluster;
         this.id = id;
         this.token = cluster.getToken();
@@ -89,7 +112,7 @@ public class ShardImpl implements Shard {
         this.token = token;
         this.id = id;
         this.shardCount = shardCount;
-        this.pool = ForkJoinPool.commonPool();
+        this.pool = MoreExecutors.newDirectExecutorService();
     }
 
     /**
@@ -104,7 +127,7 @@ public class ShardImpl implements Shard {
         this.token = token;
         this.id = id;
         this.shardCount = shardCount;
-        this.pool = service;
+        this.pool = MoreExecutors.listeningDecorator(service);
     }
 
     /**
@@ -128,46 +151,59 @@ public class ShardImpl implements Shard {
     }
 
     @Override
-    public Future<?> connect() {
-        return pool.submit(() -> {
-            if (wsclient.getConnection() == null || wsclient.getConnection().isClosed()) {
-                log.debug(logFormat("Old WebSocket client exists, disposing it..."));
-                wsclient.close();
-            }
+    public String getToken() {
+        return token;
+    }
 
-            log.debug("Connecting to the Discord Gateway...");
-            wsclient = new ShardWebSocketClient(URI.create("wss://gateway.discord.gg/?v=6&encoding=json"), this);
+    private ListenableFuture<?> connectNoCheck() {
+        return pool.submit(() -> {
+            log.debug(logFormat("Connecting to the Discord Gateway..."));
             try {
+                wsclient = new ShardWebSocketClient(URI.create(gateway.getUrl()), this);
                 wsclient.connectBlocking();
             } catch (InterruptedException e) {
-
+                log.error(logFormat("Couldn't connect to the Discord Gateway"));
             }
         });
     }
 
     @Override
-    public Future<?> disconnect(int closeCode, String reason) {
+    public ListenableFuture<?> connectAsync() {
+        if (wsclient != null && (wsclient.getConnection() == null || wsclient.getConnection().isClosed())) {
+            log.debug(logFormat("Old WebSocket client exists, disposing it..."));
+            wsclient.close();
+        }
+
+        if (gateway != null) {
+            return connectNoCheck();
+        } else {
+            return Futures.transform(GatewayBot.getAsync(this, client), (gateway) -> {
+                this.gateway = gateway;
+                return connectNoCheck();
+            }, pool);
+        }
+    }
+
+    @Override
+    public ListenableFuture<?> disconnectAsync(int closeCode, String reason) {
         return pool.submit(() -> wsclient.closeConnection(closeCode, reason));
     }
 
     @Override
-    public Future<?> send() {
+    public ListenableFuture<?> sendAsync() {
         return null;
     }
 
     @Override
-    public void addListeners(ShardEventListener... eventListeners) {
+    public void addListener(Object listener) {
+        this.eventBus.register(listener);
     }
 
     @Override
-    public void removeListeners(ShardEventListener... eventListeners) {
-
+    public void removeListener(Object listener) {
+        this.eventBus.unregister(listener);
     }
 
-    @Override
-    public List<ShardEventListener> getListeners() {
-        return null;
-    }
 
     @Override
     public void close() throws IOException {
@@ -177,4 +213,24 @@ public class ShardImpl implements Shard {
             throw new IOException(e);
         }
     }
+
+    private class GatewayHandler {
+        @Subscribe
+        public void onEvent(ShardWebSocketMessageEvent event) {
+            try {
+
+                ObjectMapper mapper = new ObjectMapper();
+                JsonNode node = mapper.readTree(event.getMessage());
+                int opcode = node.get("op").asInt();
+                switch (opcode) {
+                    default:
+                        log.debug(logFormat(String.valueOf(opcode)));
+                }
+            } catch (IOException e) {
+                log.debug(logFormat("Couldn't deserialize the message sent by the gateway."));
+            }
+
+        }
+    }
+
 }
